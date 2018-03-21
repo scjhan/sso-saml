@@ -29,7 +29,8 @@ type DbNode struct {
 func (thiz *DbNode) ToInt() int {
 	iv, err := strconv.Atoi(string(thiz.value))
 	if err != nil {
-		panic("can not conver DbNode.value (type sql.RawBytes) to int")
+		//panic("can not conver DbNode.value (type sql.RawBytes) to int")
+		return 0
 	}
 	return iv
 }
@@ -52,16 +53,19 @@ func (thiz *MySQL) Close() {
 // Query execute mysql query return value splic and it's length
 func (thiz *MySQL) Query(query string) (map[string][]DbNode, int) {
 	if thiz.db == nil {
-		panic("nil MySQL instance")
+		//panic("nil MySQL instance")
+		return nil, 0
 	}
 
 	rows, err := thiz.db.Query(query)
 	if err != nil {
-		panic(err.Error())
+		//panic(err.Error())
+		return nil, 0
 	}
 	cols, err := rows.Columns()
 	if err != nil {
-		panic(err.Error())
+		//panic(err.Error())
+		return nil, 0
 	}
 
 	values := make([]sql.RawBytes, len(cols))
@@ -75,7 +79,8 @@ func (thiz *MySQL) Query(query string) (map[string][]DbNode, int) {
 	length := 0
 	for rows.Next() {
 		if err := rows.Scan(scanArgs...); err != nil {
-			panic(err.Error())
+			//panic(err.Error())
+			return nil, 0
 		}
 		for i, val := range values {
 			retval[cols[i]] = append(retval[cols[i]], DbNode{val})
