@@ -23,7 +23,12 @@ func GetString(key string) (string, error) {
 	}
 
 	defer redisCli.Close()
-	return redigo.String(redisCli.Do("GET", key))
+
+	result, err := redigo.String(redisCli.Do("GET", key))
+	if err != nil {
+		return "", nil
+	}
+	return result, nil
 }
 
 // GetInt return a int value by key
