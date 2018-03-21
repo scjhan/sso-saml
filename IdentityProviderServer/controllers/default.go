@@ -3,14 +3,17 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"chenjunhan/sso-saml/utils/mysql"
+	"chenjunhan/sso-saml/utils/redis"
 
 	"github.com/astaxie/beego"
 )
 
 func init() {
 	mysql.InitMySQL("root", "123456", "sso")
+	redis.InitRedis("tcp", "127.0.0.1:6379")
 }
 
 type MainController struct {
@@ -26,10 +29,18 @@ type LoginArg struct {
 
 // CheckLogin check if the user has login in sso
 func (c *MainController) CheckLogin() {
-	if false /* has logined */ {
-		// redirect with global session to allow login the subsys
+	user := c.GetString("username")
+	expire, err := redis.GetString(user)
+	if err != nil {
+		c.TplName = "500.tpl"
+		log.Println("redis get error:", err.Error())
+		return
+	}
+
+	if len(expire) != 0 {
+		// has logined, redirect with global session to allow login the subsys
 	} else {
-		// not login,r eturn the login page
+		// not login, return the login page
 
 		c.Data["Website"] = c.GetString("extra")
 		c.TplName = "login_page.tpl"
