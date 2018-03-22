@@ -43,7 +43,9 @@ func (c *MainController) CheckLogin() {
 		// not login, return the login page
 
 		c.Data["Website"] = c.GetString("extra")
-		c.TplName = "login_page.tpl"
+		c.Data["Domains"] = []string{"https://www.baidu.com", "https://www.baidu.com"}
+		//c.TplName = "login_page.tpl"
+		c.TplName = "login_success.tpl"
 	}
 }
 
