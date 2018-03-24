@@ -103,16 +103,42 @@
       -moz-osx-font-smoothing: grayscale;      
     }
   </style>
+  <script>
+    function DoLogin2() {
+      alert("DoLogin2");
+    }
+    function DoLogin() {
+      var name = document.getElementsByName('username')[0].value;
+      var passwd = document.getElementsByName('password')[0].value;
+      var post_data = {
+        username:name,
+        password:passwd
+      };
+
+      var xhr;
+      if(window.XMLHttpRequest){
+        xhr = new XMLHttpRequest();
+      }else{
+        xhr = new ActiveXObject('Microsoft.XMLHTTP');
+      }
+      xhr.onreadystatechange = function(data) {
+        if(xhr.readyState == 4 && xhr.status == 200) {
+
+        }
+      };
+      xhr.open("post", "http://{{.SsoLoginUrl}}", true);
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.send(JSON.stringify(post_data));
+    }
+  </script>
 </head>
 <body>
   <div class="login-page">
     <div class="form">
       <form class="login-form">
-        <input type="text" placeholder="username"/>
-        <input type="password" placeholder="password"/>
-        <a href="http://{{.Website}}">
-          <button>login</button>
-        </a>
+        <input type="text" name="username" placeholder="username"/>
+        <input type="password" name="password" placeholder="password"/>
+        <button type="button" onclick="DoLogin();">login</button>
       </form>
     </div>
   </div>
