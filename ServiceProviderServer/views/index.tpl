@@ -71,6 +71,13 @@
       left: 0px;
     }
   </style>
+
+  <script>
+    function Login() {
+      window.location.href = "http://{{.LoginUrl}}";
+    }
+  </script>
+
 </head>
 
 <body>
@@ -85,7 +92,8 @@
       Official website:
       <a href="http://{{.Website}}">{{.Website}}</a> /
       Contact me:
-      <a class="email" href="mailto:{{.Email}}">{{.Email}}</a>
+      <a class="email" href="mailto:{{.Email}}">{{.Email}}</a> /
+      <button type="button" onclick="Login();">Login</button>
     </div>
   </footer>
   <div class="backdrop"></div>
