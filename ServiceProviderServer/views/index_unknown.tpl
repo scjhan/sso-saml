@@ -67,33 +67,34 @@
     }
   </style>
 
-  <script type="text/javascript" src="jquery-3.3.1.min.js">
-  <script type="text/javascript" src="jquery-3.3.1.min.js">
-    function sendToServer(){
-      $.ajax({
-        url : 'http://tm.com:7070/login',
-        type : "post",
-        data : a:'a',
-        async: false, 
-        success : function(data){
-          if(data != null && data.flag){
-            //在审批页面时，用于标记业务信息是否保存成功
-            //发送业务信息时，返回启动流程所需要的参数
-            //fileUpOpt(data.applySeq);
-            result=true;
-          }else{
-            result=false;
-          }
-        }
-      });
+  <script src="static/js/jquery-3.3.1.min.js"></script>
+
+  <script type="text/javascript">
+    function Login(){
+      window.location.href = "{{.IdpLoginHref}}"
+      /*
+      var post_data = {
+        return_to:"http%3A%2F%2Ftm.com%3A7070%2Findex",
+        token:""
+      };
+      var xhr;
+      if(window.XMLHttpRequest) {
+        xhr = new XMLHttpRequest();
+      } else {
+        xhr = new ActiveXObject('Microsoft.XMLHTTP');
+      }
+      xhr.open("post", "http://tm.com:7070/login", true);
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.send(JSON.stringify(post_data));
+      */
     }
   </script>
 </head>
 
 <body>
 <div>
-  <nav>
-    <a onclick="sendToServer()">请登录</a>
+  <nav>  
+    <a onclick="Login();">请登录</a>
   </nav>
 </div>
   <header>

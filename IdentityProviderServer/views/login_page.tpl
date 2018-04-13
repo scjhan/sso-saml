@@ -103,10 +103,10 @@
       -moz-osx-font-smoothing: grayscale;      
     }
   </style>
+
+  <script src="http://idp.com:9090/static/js/jquery-3.3.1.min.js"></script>
+
   <script>
-    function DoLogin2() {
-      alert("DoLogin2");
-    }
     function DoLogin() {
       var name = document.getElementsByName('username')[0].value;
       var passwd = document.getElementsByName('password')[0].value;
@@ -115,6 +115,28 @@
         password:passwd
       };
 
+      $.ajax({
+        type : "POST",
+        url : "{{.SsoLoginUrl}}",
+        dataType : "json",
+        data: JSON.stringify(post_data),
+        success : function(msg) {
+          console.log(msg)
+          console.log(msg.code)
+          if (msg.code == 0) {
+            window.location.href = msg.href;
+          } else if (msg.code == 1) {
+            alert("user not existed!");
+          } else {
+            alert("password error, code = ", msg.code);            
+          }
+        },
+        error : function() {
+
+        }
+      });
+
+      /*
       var xhr;
       if(window.XMLHttpRequest){
         xhr = new XMLHttpRequest();
@@ -126,9 +148,10 @@
 
         }
       };
-      xhr.open("post", "http://{{.SsoLoginUrl}}", true);
+      xhr.open("post", "{{.SsoLoginUrl}}", true);
       xhr.setRequestHeader("Content-Type", "application/json");
       xhr.send(JSON.stringify(post_data));
+      */
     }
   </script>
 </head>

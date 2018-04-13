@@ -1,4 +1,5 @@
 CREATE DATABASE sso;
+use sso;
 
 CREATE TABLE IF NOT EXISTS `idp_user_info`(
     `id` INT UNSIGNED AUTO_INCREMENT,
