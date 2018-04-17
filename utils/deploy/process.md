@@ -38,3 +38,6 @@ sessionid
 
 [idp redis]
 sessionid -> token
+
+[logout]
+http://idp.com/logout?raw=url
