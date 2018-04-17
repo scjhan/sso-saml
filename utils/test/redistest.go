@@ -21,4 +21,9 @@ func main() {
 	if err != nil {
 		fmt.Printf("redis error, error = %s", err.Error())
 	}
+
+	ret, err := redis.SMembers("a")
+	for _, v := range ret {
+		fmt.Print(v, ";")
+	}
 }
