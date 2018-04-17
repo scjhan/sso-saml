@@ -3,14 +3,19 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/url"
+	"strings"
 
+	"chenjunhan/sso-saml/IdentityProviderServer/models"
 	"chenjunhan/sso-saml/proto"
+	"chenjunhan/sso-saml/utils/log"
 	"chenjunhan/sso-saml/utils/mysql"
 	"chenjunhan/sso-saml/utils/redis"
 	"chenjunhan/sso-saml/utils/util"
 
 	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/context"
 	"github.com/astaxie/beego/plugins/cors"
 )
 
@@ -25,6 +30,16 @@ func init() {
 		ExposeHeaders:    []string{"Content-Length", "Access-Control-Allow-Origin"},
 		AllowCredentials: true,
 	}))
+
+	//add interceptor
+	beego.InsertFilter("/sso/*", beego.BeforeExec, func(ctx *context.Context) {
+		util.Debug("Referer = " + ctx.Request.Referer())
+		//host := strings.Split(ctx.Request.Host, ":")[0]
+		// if !models.CheckHost(ctx.Input.Host()) {
+		// 	util.Debug("beego.InsertFilter host = " + ctx.Input.IP())
+		// 	ctx.Redirect(302, "/not_allowed")
+		// }
+	})
 }
 
 type MainController struct {
@@ -42,25 +57,33 @@ type LoginRet struct {
 	Href string `json:"href"`
 }
 
+func (c *MainController) NotAllowed() {
+	c.TplName = "403.tpl"
+}
+
 // CheckLogin check if the user has login in sso
 func (c *MainController) CheckLogin() {
 	sessionid := c.Ctx.GetCookie("sessionid")
 
-	if len(sessionid) == 0 {
-		// not login
-		c.Data["SsoLoginUrl"] = "http://idp.com:9090/sso/login?return_to=" + c.GetString("return_to")
-		c.TplName = "login_page.tpl"
-	} else {
-		token, _ := redis.GetString(sessionid)
+	if len(sessionid) != 0 {
+		token, _ := redis.GetString(models.CreateRedisKey(sessionid, models.SessionTokenKey))
 
-		ret2 := c.GetString("return_to")
-		u2, _ := url.Parse(ret2)
-		q2 := u2.Query()
-		q2.Add("token", token)
-		u2.RawQuery = q2.Encode()
+		if len(token) != 0 {
+			ret2 := c.GetString("return_to")
+			u2, _ := url.Parse(ret2)
+			q2 := u2.Query()
+			q2.Add("token", token)
+			u2.RawQuery = q2.Encode()
 
-		c.Redirect(u2.String(), 302)
+			c.Redirect(u2.String(), 302)
+		} else {
+			// means has logout but local session isn't deleted
+			c.Ctx.SetCookie("sessionid", "")
+		}
 	}
+
+	c.Data["SsoLoginUrl"] = "/sso/login?return_to=" + c.GetString("return_to")
+	c.TplName = "login_page.tpl"
 }
 
 func (c *MainController) LoginPage() {
@@ -124,11 +147,16 @@ func (c *MainController) Login() {
 		}
 		bytes, _ := json.Marshal(token)
 
-		redis.SetString(sessionid, token.Token, 60*60)
-		redis.SetString(token.Token, string(bytes), 60*60)
+		redis.SetString(models.CreateRedisKey(sessionid, models.SessionTokenKey), token.Token, 60*60)
+		redis.SetString(models.CreateRedisKey(token.Token, models.TokenValueKey), string(bytes), 60*60)
+		redis.SetString(models.CreateRedisKey(token.Uid, models.UIDSessionKey), sessionid, 60*60)
 
 		// set cookie
 		c.Ctx.SetCookie("sessionid", sessionid)
+
+		// cache host
+		host := strings.Split(c.Ctx.Request.Host, ":")[0]
+		redis.SetAdd(models.CreateRedisKey(token.Uid, models.HostSetKey), host)
 
 		u, _ := url.Parse(returnTo)
 		q := u.Query()
@@ -140,17 +168,40 @@ func (c *MainController) Login() {
 			Href: u.String(),
 		}
 
-		util.Debug("idp login href: " + ret.Href)
-
 		retByte, _ := json.Marshal(ret)
 		c.Ctx.WriteString(string(retByte))
 	}
 }
 
-func (c *MainController) VerifyToken() {
-	token := c.GetString("token", "")
+func (c *MainController) Push() {
+	body, _ := ioutil.ReadAll(c.Ctx.Request.Body)
+	msg := proto.ToPushMsg(body)
+	resp := proto.PushMsg{
+		Type: proto.Ok,
+	}
 
-	tokenJson, _ := redis.GetString(token)
+	log.Debug(string(body))
 
-	c.Ctx.WriteString(tokenJson)
+	for i := 0; i < 1; i++ {
+		if msg.Type == proto.Error {
+			resp.Type = proto.Error
+			break
+		}
+
+		if msg.Type == proto.ClusterLogout {
+			uid := msg.Content
+
+			models.DeleteUIDCache(uid)
+			models.NotifyLogout(uid)
+			break
+		}
+
+		if msg.Type == proto.ClusterVerifyToken {
+			tokenStr, _ := redis.GetString(models.CreateRedisKey(msg.Content, models.TokenValueKey))
+			resp.Content = tokenStr
+			break
+		}
+	}
+
+	c.Ctx.WriteString(resp.String())
 }

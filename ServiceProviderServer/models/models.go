@@ -1,9 +1,11 @@
 package models
 
 import (
+	"bytes"
 	"chenjunhan/sso-saml/proto"
-	"chenjunhan/sso-saml/utils/util"
+	"chenjunhan/sso-saml/utils/log"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -46,23 +48,63 @@ func CreateIdpCheckLoginURL(rawhost string, rawreturn string) string {
 	return u.String()
 }
 
+func CreateIdpPushURL() string {
+	u := url.URL{
+		Scheme: "http",
+		Host:   beego.AppConfig.String("idp::host"),
+		Path:   "/sso/push",
+	}
+
+	return u.String()
+}
+
 func VerifyToken(token string) proto.TokenVerifyData {
 	retval := proto.TokenVerifyData{}
 
-	if len(token) == 0 {
-		return retval
+	c := http.Client{}
+	u := CreateIdpPushURL()
+	msg := proto.PushMsg{
+		Type:    proto.ClusterVerifyToken,
+		Content: token,
 	}
 
-	client := http.Client{}
-	url := CreateVerifyTokenURL(token)
-
-	if resp, err := client.Get(url); err == nil {
-		defer resp.Body.Close()
-		body, _ := ioutil.ReadAll(resp.Body)
-		json.Unmarshal(body, &retval)
+	if r, err := c.Post(u, "application/json", bytes.NewReader([]byte(msg.String()))); err == nil {
+		defer r.Body.Close()
+		body, _ := ioutil.ReadAll(r.Body)
+		resp := proto.PushMsg{}
+		if err = json.Unmarshal(body, &resp); err == nil && resp.Type == proto.Ok {
+			json.Unmarshal([]byte(resp.Content), &retval)
+			log.Debug(resp.String())
+		} else {
+			log.Debug(err.Error())
+		}
 	} else {
-		util.Debug("VerifyToken client.Get error: " + err.Error())
+		log.Debug(err.Error())
 	}
+
+	log.Debug(fmt.Sprintf("%s", retval))
 
 	return retval
+}
+
+type KeyType string
+
+const (
+	SessionKey     = KeyType("S")
+	UID2SessionKey = KeyType("U2S")
+)
+
+func CreateRedisKey(key string, kt KeyType) string {
+	return beego.AppConfig.String("appname") + "_" + string(kt) + "_" + key
+}
+
+func IdpLogout(uid string) {
+	c := http.Client{}
+	u := CreateIdpPushURL()
+	msg := proto.PushMsg{
+		Type:    proto.ClusterLogout,
+		Content: uid,
+	}
+
+	c.Post(u, "application/json", bytes.NewReader([]byte(msg.String())))
 }

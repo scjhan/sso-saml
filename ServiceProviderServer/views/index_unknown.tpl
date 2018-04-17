@@ -94,7 +94,7 @@
 <body>
 <div>
   <nav>  
-    <a onclick="Login();">请登录</a>
+    <a onclick="Login();">Login</a>
   </nav>
 </div>
   <header>

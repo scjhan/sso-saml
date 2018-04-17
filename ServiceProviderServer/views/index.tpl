@@ -66,12 +66,32 @@
       left: 0px;
     }
   </style>
+
+  <script src="static/js/jquery-3.3.1.min.js"></script>
+
+  <script type="text/javascript">
+    function DoLogout() {
+      $.ajax({
+        type : "GET",
+        url : "/logout",
+        success : function(msg) {
+          console.log(msg);
+          window.location.href="/index";
+        },
+        error : function() {
+
+        }
+      });
+    }
+  </script>
+
 </head>
 
 <body>
 <div>
   <nav>  
     <span>欢迎 {{.UserName}}</span>
+    <a onclick="DoLogout();">Logout</a>
   </nav>
 </div>
   <header>

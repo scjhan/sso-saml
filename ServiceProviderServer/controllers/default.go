@@ -6,6 +6,7 @@ import (
 	"chenjunhan/sso-saml/utils/redis"
 	"chenjunhan/sso-saml/utils/util"
 	"encoding/json"
+	"io/ioutil"
 
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/plugins/cors"
@@ -27,6 +28,19 @@ func init() {
 	}))
 }
 
+// func (c *MainController) handleIdpNotify() {
+// 	uid := c.GetString("uid")
+// 	code := c.GetString(proto.NotifyLabel)
+
+// 	if code == proto.NotifyLogout {
+// 		sessionid, _ := redis.GetString(models.CreateRedisKey(uid, models.UID2SessionKey))
+// 		if len(sessionid) != 0 {
+// 			redis.Delete(models.CreateRedisKey(sessionid, models.SessionKey))
+// 		}
+// 		redis.Delete(models.CreateRedisKey(uid, models.UID2SessionKey))
+// 	}
+// }
+
 func (c *MainController) Get() {
 	c.Data["Website"] = "beego.me"
 	c.Data["Email"] = "astaxie@gmail.com"
@@ -47,7 +61,11 @@ func (c *MainController) CheckLoginRet() {
 			Name:      vd.Name,
 		}
 		if cache, err := json.Marshal(session); err == nil {
-			redis.SetString(session.SessionID, string(cache), 60*60)
+			key1 := models.CreateRedisKey(session.SessionID, models.SessionKey)
+			key2 := models.CreateRedisKey(session.UID, models.UID2SessionKey)
+			redis.SetString(key1, string(cache), 60*60)
+			redis.SetString(key2, session.SessionID, 60*60) // make sure we can find a sesionid by uid
+			util.Debug("check_login_ret, key = " + key1 + ";" + key2)
 		}
 
 		// set cookie
@@ -77,7 +95,7 @@ func (c *MainController) Index() {
 		unknown = true
 	}
 
-	cache, err := redis.GetString(sessionid)
+	cache, err := redis.GetString(models.CreateRedisKey(sessionid, models.SessionKey))
 	if err != nil {
 		c.TplName = "500.tpl"
 		return
@@ -100,7 +118,55 @@ func (c *MainController) Index() {
 	}
 }
 
+func (c *MainController) Logout() {
+	sessionid := c.Ctx.GetCookie("sessionid")
+	if len(sessionid) != 0 {
+		c.Ctx.SetCookie("sessionid", "")
+		sessionStr, _ := redis.GetString(models.CreateRedisKey(sessionid, models.SessionKey))
+		redis.Delete(models.CreateRedisKey(sessionid, models.SessionKey))
+
+		session := proto.Session{}
+		if err := json.Unmarshal([]byte(sessionStr), &session); err == nil && len(session.UID) != 0 {
+			redis.Delete(models.CreateRedisKey(session.UID, models.UID2SessionKey))
+		}
+
+		models.IdpLogout(session.UID)
+	}
+	c.Redirect("/index", 302)
+}
+
 func (c *MainController) Test() {
 	//http://tm.com/login?return_to=http%3A%2F%2Ftm.com%2Findex
+	c.Ctx.WriteString(c.Ctx.Request.Host)
+}
+
+func (c *MainController) Push() {
+	body, _ := ioutil.ReadAll(c.Ctx.Request.Body)
+	msg := proto.ToPushMsg(body)
+	resp := proto.PushMsg{
+		Type: proto.Ok,
+	}
+
+	for i := 0; i < 1; i++ {
+		if msg.Type == proto.Error {
+			resp.Type = proto.Error
+			break
+		}
+
+		if msg.Type == proto.IdpLogout {
+			// idp notify logout
+			sessionid := c.Ctx.GetCookie("sessionid")
+			if len(sessionid) != 0 {
+				redis.Delete(models.CreateRedisKey(sessionid, models.SessionKey))
+				session := proto.Session{}
+				sessionStr, _ := redis.GetString(models.CreateRedisKey(sessionid, models.SessionKey))
+				if err := json.Unmarshal([]byte(sessionStr), &session); err == nil && len(session.UID) != 0 {
+					redis.Delete(models.CreateRedisKey(session.UID, models.UID2SessionKey))
+				}
+			}
+		}
+	}
+
+	c.Ctx.WriteString(resp.String())
 
 }
