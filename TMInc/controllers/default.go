@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"chenjunhan/sso-saml/ServiceProviderServer/models"
+	"chenjunhan/sso-saml/TMInc/models"
 	"chenjunhan/sso-saml/proto"
 	"chenjunhan/sso-saml/utils/log"
 	"chenjunhan/sso-saml/utils/redis"
