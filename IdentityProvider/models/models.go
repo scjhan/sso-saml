@@ -44,24 +44,44 @@ func GetHostPort() string {
 	return GetHost() + ":" + GetPort()
 }
 
+func GetClusterHostPort() map[string]string {
+	hosts := strings.Split(beego.AppConfig.String("cluster::hosts"), beego.AppConfig.String("cluster::commas"))
+	ports := strings.Split(beego.AppConfig.String("cluster::ports"), beego.AppConfig.String("cluster::commas"))
+
+	retval := map[string]string{}
+	for i, v := range hosts {
+		retval[v] = v + ":" + ports[i]
+	}
+
+	return retval
+}
+
 func NotifyLogout(uid string) {
 	hosts, _ := redis.SMembers(CreateRedisKey(uid, HostSetKey))
-	for _, host := range hosts {
-		u := url.URL{
-			Scheme: "http",
-			Host:   host,
-			Path:   "/push",
-		}
-		c := http.Client{}
+	hp := GetClusterHostPort()
 
-		msg := proto.PushMsg{
-			Type:    proto.IdpLogout,
-			Content: uid,
-		}
+	fmt.Println(hosts, hp)
 
-		mb, _ := json.Marshal(msg)
+	for _, v := range hosts {
+		go func(host string) {
+			u := url.URL{
+				Scheme: "http",
+				Host:   hp[host],
+				Path:   "/push",
+			}
+			c := http.Client{}
 
-		c.Post(u.String(), "application/json", bytes.NewReader(mb))
+			msg := proto.PushMsg{
+				Type:    proto.IdpLogout,
+				Content: uid,
+			}
+
+			mb, _ := json.Marshal(msg)
+
+			fmt.Println("=================NotifyLogout url =", u.String())
+
+			c.Post(u.String(), "application/json", bytes.NewReader(mb))
+		}(v)
 	}
 }
 

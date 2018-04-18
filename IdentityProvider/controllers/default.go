@@ -70,8 +70,9 @@ func (c *MainController) CheckLogin() {
 			}
 
 			// save host
+			tokenValue, _ := redis.GetString(models.CreateRedisKey(token, models.TokenValueKey))
 			value := proto.TokenVerifyData{}
-			json.Unmarshal([]byte(token), &value)
+			json.Unmarshal([]byte(tokenValue), &value)
 			if len(value.Uid) != 0 {
 				redis.SetAdd(models.CreateRedisKey(value.Uid, models.HostSetKey), host)
 				log.Debug(fmt.Sprintf("redis.SetAdd(%s, %s)", models.CreateRedisKey(value.Uid, models.HostSetKey), host))
@@ -208,8 +209,8 @@ func (c *MainController) Push() {
 		if msg.Type == proto.ClusterLogout {
 			uid := msg.Content
 
-			models.DeleteUIDCache(uid)
 			models.NotifyLogout(uid)
+			models.DeleteUIDCache(uid)
 			break
 		}
 
