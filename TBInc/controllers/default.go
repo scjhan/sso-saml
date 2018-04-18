@@ -136,16 +136,12 @@ func (c *MainController) Push() {
 		}
 
 		if msg.Type == proto.IdpLogout {
-			// idp notify logout
-			sessionid := c.Ctx.GetCookie("sessionid")
+			sessionid, _ := redis.GetString(models.CreateRedisKey(msg.Content, models.UID2SessionKey))
+			redis.Delete(models.CreateRedisKey(msg.Content, models.UID2SessionKey))
 			if len(sessionid) != 0 {
 				redis.Delete(models.CreateRedisKey(sessionid, models.SessionKey))
-				session := proto.Session{}
-				sessionStr, _ := redis.GetString(models.CreateRedisKey(sessionid, models.SessionKey))
-				if err := json.Unmarshal([]byte(sessionStr), &session); err == nil && len(session.UID) != 0 {
-					redis.Delete(models.CreateRedisKey(session.UID, models.UID2SessionKey))
-				}
 			}
+			log.Debug("idp notify logout done")
 		}
 	}
 
