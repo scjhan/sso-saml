@@ -13,6 +13,30 @@ import (
 	"github.com/astaxie/beego"
 )
 
+func init() {
+	log.InitLogService(beego.AppConfig.String("appname"), "/c/Users/Han/Desktop/logs")
+}
+
+func GetHost() string {
+	host := beego.AppConfig.String("host")
+	if len(host) != 0 {
+		return host
+	}
+	return "tm.com"
+}
+
+func GetPort() string {
+	port := beego.AppConfig.String("httpport")
+	if len(port) != 0 {
+		return port
+	}
+	return "7070"
+}
+
+func GetHostPort() string {
+	return GetHost() + ":" + GetPort()
+}
+
 func CreateVerifyTokenURL(token string) string {
 	q := url.Values{}
 	q.Set("token", token)
@@ -31,12 +55,13 @@ func CreateIdpCheckLoginURL(rawhost string, rawreturn string) string {
 	rawq.Set("return_to", rawreturn)
 	rawu := url.URL{
 		Scheme:   "http",
-		Host:     rawhost,
+		Host:     GetHostPort(),
 		Path:     "check_login_ret",
 		RawQuery: rawq.Encode(),
 	}
 
 	q := url.Values{}
+	q.Set("host", GetHost())
 	q.Set("return_to", rawu.String())
 	u := url.URL{
 		Scheme:   "http",

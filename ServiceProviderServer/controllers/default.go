@@ -3,6 +3,7 @@ package controllers
 import (
 	"chenjunhan/sso-saml/ServiceProviderServer/models"
 	"chenjunhan/sso-saml/proto"
+	"chenjunhan/sso-saml/utils/log"
 	"chenjunhan/sso-saml/utils/redis"
 	"chenjunhan/sso-saml/utils/util"
 	"encoding/json"
@@ -26,20 +27,9 @@ func init() {
 		ExposeHeaders:    []string{"Content-Length", "Access-Control-Allow-Origin"},
 		AllowCredentials: true,
 	}))
+
+	log.InitLogService(beego.AppConfig.String("appname"), "/c/Users/Han/Desktop/logs")
 }
-
-// func (c *MainController) handleIdpNotify() {
-// 	uid := c.GetString("uid")
-// 	code := c.GetString(proto.NotifyLabel)
-
-// 	if code == proto.NotifyLogout {
-// 		sessionid, _ := redis.GetString(models.CreateRedisKey(uid, models.UID2SessionKey))
-// 		if len(sessionid) != 0 {
-// 			redis.Delete(models.CreateRedisKey(sessionid, models.SessionKey))
-// 		}
-// 		redis.Delete(models.CreateRedisKey(uid, models.UID2SessionKey))
-// 	}
-// }
 
 func (c *MainController) Get() {
 	c.Data["Website"] = "beego.me"
@@ -65,12 +55,12 @@ func (c *MainController) CheckLoginRet() {
 			key2 := models.CreateRedisKey(session.UID, models.UID2SessionKey)
 			redis.SetString(key1, string(cache), 60*60)
 			redis.SetString(key2, session.SessionID, 60*60) // make sure we can find a sesionid by uid
-			util.Debug("check_login_ret, key = " + key1 + ";" + key2)
+			log.Debug("check_login_ret, key = " + key1 + ";" + key2)
 		}
 
 		// set cookie
 		c.Ctx.SetCookie("sessionid", session.SessionID)
-		util.Debug("I have set cookie: " + session.SessionID)
+		log.Debug("I have set cookie: " + session.SessionID)
 	}
 
 	// redirect to return_to
@@ -87,7 +77,7 @@ func (c *MainController) Login() {
 
 func (c *MainController) Index() {
 	sessionid := c.Ctx.GetCookie("sessionid")
-	util.Debug("Index get cookie: " + sessionid)
+	log.Debug("Index get cookie: " + sessionid)
 
 	unknown := false
 

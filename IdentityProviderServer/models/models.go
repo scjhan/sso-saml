@@ -1,10 +1,12 @@
 package models
 
 import (
+	"bytes"
 	"chenjunhan/sso-saml/proto"
+	"chenjunhan/sso-saml/utils/log"
 	"chenjunhan/sso-saml/utils/mysql"
 	"chenjunhan/sso-saml/utils/redis"
-	"chenjunhan/sso-saml/utils/util"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -13,46 +15,78 @@ import (
 	"github.com/astaxie/beego"
 )
 
+const (
+	Page403 = "403.tpl"
+	Page500 = "500.tpl"
+)
+
+const (
+	MagicExpire = 5 * 60
+)
+
+func GetHost() string {
+	host := beego.AppConfig.String("host")
+	if len(host) != 0 {
+		return host
+	}
+	return "idp.com"
+}
+
+func GetPort() string {
+	port := beego.AppConfig.String("httpport")
+	if len(port) != 0 {
+		return port
+	}
+	return "9090"
+}
+
+func GetHostPort() string {
+	return GetHost() + ":" + GetPort()
+}
+
 func NotifyLogout(uid string) {
 	hosts, _ := redis.SMembers(CreateRedisKey(uid, HostSetKey))
 	for _, host := range hosts {
-		q := url.Values{}
-		q.Add("uid", uid)
-		q.Add(proto.NotifyLabel, proto.NotifyLogout)
 		u := url.URL{
-			Scheme:   "http",
-			Host:     host,
-			Path:     "/idp_notify",
-			RawQuery: q.Encode(),
+			Scheme: "http",
+			Host:   host,
+			Path:   "/push",
+		}
+		c := http.Client{}
+
+		msg := proto.PushMsg{
+			Type:    proto.IdpLogout,
+			Content: uid,
 		}
 
-		client := http.Client{}
-		client.Get(u.String())
+		mb, _ := json.Marshal(msg)
+
+		c.Post(u.String(), "application/json", bytes.NewReader(mb))
 	}
 }
 
 // CheckHost check host is legal
 // host format example.com:port
-func CheckHost(host string) bool {
+func CheckHost(host string) (string, bool) {
 	if len(host) == 0 {
-		return false
+		return "", false
 	}
 
 	o, err := mysql.NewMySQL()
 	if err != nil {
-		return false
+		return "", false
 	}
 
 	lowerHost := strings.ToLower(host)
 	sSql := fmt.Sprintf("select 1 from idp_cluster_info where host=%q", lowerHost)
-	util.Debug(fmt.Sprintf("sql = %s", sSql))
+	log.Debug(fmt.Sprintf("sql = %s", sSql))
 
 	_, num := o.Query(sSql)
 	if num <= 0 {
-		return false
+		return "", false
 	}
 
-	return true
+	return host, true
 }
 
 type KeyType string
@@ -62,6 +96,7 @@ const (
 	SessionTokenKey = KeyType("ST") // session -> token
 	TokenValueKey   = KeyType("TV") // token -> token_value
 	HostSetKey      = KeyType("HS") // uid -> host_set
+	MagicKey        = KeyType("MK") // magic -> host
 )
 
 func CreateRedisKey(key string, kt KeyType) string {

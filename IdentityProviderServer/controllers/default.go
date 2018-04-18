@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
-	"strings"
 
 	"chenjunhan/sso-saml/IdentityProviderServer/models"
 	"chenjunhan/sso-saml/proto"
@@ -15,7 +14,6 @@ import (
 	"chenjunhan/sso-saml/utils/util"
 
 	"github.com/astaxie/beego"
-	"github.com/astaxie/beego/context"
 	"github.com/astaxie/beego/plugins/cors"
 )
 
@@ -30,16 +28,6 @@ func init() {
 		ExposeHeaders:    []string{"Content-Length", "Access-Control-Allow-Origin"},
 		AllowCredentials: true,
 	}))
-
-	//add interceptor
-	beego.InsertFilter("/sso/*", beego.BeforeExec, func(ctx *context.Context) {
-		util.Debug("Referer = " + ctx.Request.Referer())
-		//host := strings.Split(ctx.Request.Host, ":")[0]
-		// if !models.CheckHost(ctx.Input.Host()) {
-		// 	util.Debug("beego.InsertFilter host = " + ctx.Input.IP())
-		// 	ctx.Redirect(302, "/not_allowed")
-		// }
-	})
 }
 
 type MainController struct {
@@ -63,47 +51,76 @@ func (c *MainController) NotAllowed() {
 
 // CheckLogin check if the user has login in sso
 func (c *MainController) CheckLogin() {
-	sessionid := c.Ctx.GetCookie("sessionid")
+	host, ok := models.CheckHost(c.GetString("host"))
+	if !ok || len(c.GetString("return_to")) == 0 {
+		c.TplName = models.Page403
+		return
+	}
 
+	sessionid := c.Ctx.GetCookie("sessionid")
 	if len(sessionid) != 0 {
 		token, _ := redis.GetString(models.CreateRedisKey(sessionid, models.SessionTokenKey))
 
 		if len(token) != 0 {
 			ret2 := c.GetString("return_to")
 			u2, _ := url.Parse(ret2)
+			if u2.Hostname() != host {
+				c.TplName = models.Page403
+				return
+			}
+
+			// save host
+			value := proto.TokenVerifyData{}
+			json.Unmarshal([]byte(token), &value)
+			if len(value.Uid) != 0 {
+				redis.SetAdd(models.CreateRedisKey(value.Uid, models.HostSetKey), host)
+				log.Debug(fmt.Sprintf("redis.SetAdd(%s, %s)", models.CreateRedisKey(value.Uid, models.HostSetKey), host))
+			}
+
 			q2 := u2.Query()
 			q2.Add("token", token)
 			u2.RawQuery = q2.Encode()
 
 			c.Redirect(u2.String(), 302)
+			return
 		} else {
 			// means has logout but local session isn't deleted
 			c.Ctx.SetCookie("sessionid", "")
 		}
 	}
 
-	c.Data["SsoLoginUrl"] = "/sso/login?return_to=" + c.GetString("return_to")
-	c.TplName = "login_page.tpl"
-}
-
-func (c *MainController) LoginPage() {
-	returnTo := c.GetString("return_to")
-	if len(returnTo) == 0 {
-		c.TplName = "500.tpl"
-		c.Data["ErrorMsg"] = "LoginPage 'return_to' is null"
-		return
+	magic := util.GetGUID()
+	redis.SetString(models.CreateRedisKey(magic, models.MagicKey), host, models.MagicExpire)
+	q := url.Values{}
+	q.Add("magic", magic)
+	q.Add("return_to", c.GetString("return_to"))
+	u := url.URL{
+		Path:     "/sso/login",
+		RawQuery: q.Encode(),
 	}
 
+	c.Data["SsoLoginUrl"] = u.String()
 	c.TplName = "login_page.tpl"
-	c.Data["SsoLoginUrl"] = fmt.Sprintf("idp.com:9090/sso/login/?return_to=%s", returnTo)
 }
 
 // Login login and create global session and redirect to subsystem
 func (c *MainController) Login() {
 	returnTo := c.GetString("return_to")
-	if len(returnTo) == 0 {
-		c.TplName = "500.tpl"
+	magic := c.GetString("magic")
+	if len(returnTo) == 0 || len(magic) == 0 {
+		c.TplName = models.Page500
 		c.Data["ErrorMsg"] = "Login 'return_to' is null"
+		return
+	}
+	host, _ := redis.GetString(models.CreateRedisKey(magic, models.MagicKey)) // cache from check login
+	if len(host) == 0 {
+		// too late or duplicate to call login, redirect to target without token
+		retByte, _ := json.Marshal(LoginRet{
+			Code: 0,
+			Href: returnTo,
+		})
+		c.Ctx.WriteString(string(retByte))
+		log.Debug("Too late or duplicate to call login, redirect to target without token")
 		return
 	}
 
@@ -155,14 +172,14 @@ func (c *MainController) Login() {
 		c.Ctx.SetCookie("sessionid", sessionid)
 
 		// cache host
-		host := strings.Split(c.Ctx.Request.Host, ":")[0]
-		redis.SetAdd(models.CreateRedisKey(token.Uid, models.HostSetKey), host)
+		redis.SetAdd(models.CreateRedisKey(token.Uid, models.HostSetKey), host) // cache host
+		redis.Delete(models.CreateRedisKey(magic, models.MagicKey))             // delete magic
+		log.Debug(fmt.Sprintf("redis.SetAdd(%s, %s)", models.CreateRedisKey(token.Uid, models.HostSetKey), host))
 
 		u, _ := url.Parse(returnTo)
 		q := u.Query()
 		q.Add("token", token.Token)
 		u.RawQuery = q.Encode()
-
 		ret := LoginRet{
 			Code: 0,
 			Href: u.String(),
