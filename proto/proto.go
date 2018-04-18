@@ -21,12 +21,6 @@ type Session struct {
 	Name      string `json:"name`
 }
 
-const (
-	NotifyLabel  = "code"
-	NotifyNone   = "0"
-	NotifyLogout = "1"
-)
-
 // Push message define
 const (
 	Error = 0
