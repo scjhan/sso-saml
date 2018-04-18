@@ -60,8 +60,6 @@ func NotifyLogout(uid string) {
 	hosts, _ := redis.SMembers(CreateRedisKey(uid, HostSetKey))
 	hp := GetClusterHostPort()
 
-	fmt.Println(hosts, hp)
-
 	for _, v := range hosts {
 		go func(host string) {
 			u := url.URL{
@@ -77,8 +75,6 @@ func NotifyLogout(uid string) {
 			}
 
 			mb, _ := json.Marshal(msg)
-
-			fmt.Println("=================NotifyLogout url =", u.String())
 
 			c.Post(u.String(), "application/json", bytes.NewReader(mb))
 		}(v)

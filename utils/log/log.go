@@ -26,7 +26,6 @@ func InitLogService(name string, path string) *LogService {
 	}
 
 	gLogService.path = fmt.Sprintf("%s/%s.%s.log", path, name, time.Now().Format("2006.01.02"))
-	fmt.Println(gLogService.path)
 	gLogService.capacity = 0
 
 	gLogService.file, _ = os.OpenFile(gLogService.path, os.O_CREATE|os.O_APPEND, 0644)
