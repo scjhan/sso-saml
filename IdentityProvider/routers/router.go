@@ -1,7 +1,7 @@
 package routers
 
 import (
-	"chenjunhan/sso-saml/IdentityProviderServer/controllers"
+	"chenjunhan/sso-saml/IdentityProvider/controllers"
 
 	"github.com/astaxie/beego"
 )

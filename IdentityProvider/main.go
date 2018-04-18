@@ -1,7 +1,7 @@
 package main
 
 import (
-	_ "chenjunhan/sso-saml/IdentityProviderServer/routers"
+	_ "chenjunhan/sso-saml/IdentityProvider/routers"
 
 	"github.com/astaxie/beego"
 )

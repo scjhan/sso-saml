@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/url"
 
-	"chenjunhan/sso-saml/IdentityProviderServer/models"
+	"chenjunhan/sso-saml/IdentityProvider/models"
 	"chenjunhan/sso-saml/proto"
 	"chenjunhan/sso-saml/utils/log"
 	"chenjunhan/sso-saml/utils/mysql"
