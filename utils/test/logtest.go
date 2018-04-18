@@ -1,10 +1,16 @@
 package main
 
-import "chenjunhan/sso-saml/utils/log"
+import (
+	"chenjunhan/sso-saml/utils/log"
+)
+
+func init() {
+	log.InitLogService("logtest", ".")
+}
 
 func main() {
-	log.LogD("hello world")
-	log.LogE("hello world")
-	log.LogW("hello world")
-	log.LogI("hello world")
+	log.Debug("hello world")
+	log.Error("hello world")
+	log.Warning("hello world")
+	log.Info("hello world")
 }
