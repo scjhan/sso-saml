@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
-	"fmt"
 	"io"
 )
 
@@ -23,8 +22,4 @@ func GetGUID() string {
 		return ""
 	}
 	return md5s(base64.URLEncoding.EncodeToString(b))
-}
-
-func Debug(log string) {
-	fmt.Println(fmt.Sprintf("[DEBUG]%s\n", log))
 }
