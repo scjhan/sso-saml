@@ -56,3 +56,16 @@ func ToPushMsg(msg []byte) PushMsg {
 
 	return pm
 }
+
+type cryptoMsg struct {
+	Key     string `json:"key"`
+	Content string `json:"content"`
+}
+
+// EncryptString use des algorithm to encrypt the pushmsg,
+// and return a json string which represent cryptoMsg value,
+// cryptoMsg.Key means the des key string which encrypt by rsa_pub
+func (m *PushMsg) EncryptString(pub, priv string) (string, error) {
+
+	return "", nil
+}
